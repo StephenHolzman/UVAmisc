@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, height=device-height, initial-scale=1, maximum-scale=1.0, user-scalable=no">
+
+<style>
+
+.state {
+  fill: none;
+  stroke:#000;
+
+}
+
+.counties {
+  fill: none;
+  stroke: #5e5e5e;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+#bigcontainer {
+	display: flex;
+	flex-flow: row wrap;
+	max-height:750px;
+	max-width:1000px;
+}
+#header {
+  flex: 1 100%;
+  background-color: #203467;
+  margin:0px;
+  /*position: fixed;
+  top: 0px;
+  left: 0px;*/
+  color:white;
+  padding:8px;
+  font-size: 20px;
+  font-family:Adobe Caslon Pro;
+}
+
+#map {
+	background-color:#f1eede;
+	flex: 1 100%;
+	max-height: 500px;
+	overflow:hidden;
+}
+
+#options {
+	background-color:#f1eede;
+  /*background:#e0e0d1;*/
+  max-width:70%;
+  min-height:280px;
+  max-height:280px;
+  flex: 1 0px;
+  text-align:center;
+  color:#235281;
+  padding-left:15%;
+  padding-right:15%;
+}
+a {
+	padding:3px;
+	margin:3px;
+}
+#footer {
+  height: 40px;
+  flex: 1 100%;
+  background-color: #203467;
+  color:white;
+  padding:4px;
+}
+td {
+	padding:3px;
+}
+table {
+	padding:3px;
+
+	background-color:#e0e0d1;
+}
+.legendblock {
+	width: 20px;
+	height: 20px;
+	border-color:black;
+	border-width:2px;
+	border-style:solid;
+}
+.q0-0 {
+	fill:#F9F0E2;
+	background-color:#F9F0E2;
+}
+.q0-1 {
+	fill:#EFD2AA;
+	background-color:#EFD2AA;
+}
+.q0-2 {
+	fill:#E4B471;
+	background-color:#E4B471;	
+}
+.q0-3 {
+	fill:#D9963B;
+	background-color:#D9963B;	
+}
+.q0-4 {
+	fill:#CF7800;
+	background-color:#CF7800;	
+}
+select {
+	width:100%;
+}
+@media all and (min-width: 950px) {
+
+
+
+	#map {
+		flex: 1 200px;
+		order: 1;
+	}
+
+	#options {
+		order: 2;
+		max-width: 270px;
+		max-height: 100%;
+		padding-left:0%;
+		padding-right:0%;
+	}
+
+	#footer {
+		order: 3;
+	}
+}
+</style>
+
+<div id='bigcontainer'>
+	<div id='header'>Virginia Population</div>
+
+	<div id='map'></div>
+
+	<div id='options'>
+		<select id="dropdown">
+			<option value="est_pop2015">2015 Population Estimates</option>
+			<option value="pop2020">2020 Population Forecast</option>
+			<option value="pop2030">2030 Population Forecast</option>
+			<option value="pop2040">2040 Population Forecast</option>
+		</select>
+		<h3 id="geography">Virginia</h3>
+		<a id="value">8000000</a>
+		<center>
+		<table>
+			<tr>
+				<td><div class="legendblock q0-0"></div></td>
+				<td>Less than 50,000</td>
+			</tr>
+			<tr>
+				<td><svg class="legendblock q0-1"></svg></td>
+				<td>50,000 to 99,999</td>
+			</tr>
+			<tr>
+				<td><svg class="legendblock q0-2"></svg></td>
+				<td>100,000 to 149,999</td>
+			</tr>
+			<tr>
+				<td><svg class="legendblock q0-3"></svg></td>
+				<td>150,000 to 200,000</td>
+			</tr>
+			<tr>
+				<td><svg class="legendblock q0-4"></svg></td>
+				<td>More than 200,000</td>
+			</tr>									
+		</table>
+		</center>
+	</div>
+
+	<div id='footer'>
+	  <div id="author">@StephenHolz</div>
+	  <div id="cite">Source: Census Bureau</div>
+
+	</div>
+
+</div>
+<script src="/node_modules/d3/build/d3.min.js"></script>
+<script src="/node_modules/topojson/build/topojson.min.js"></script>
+<script>
+
+margin = {top: 0, left: 0, bottom: 0, right: 0}
+  , width = parseInt(d3.select('#map').style('width'))
+  , width = width - margin.left - margin.right
+  , mapRatio = .5
+  , height = width * mapRatio - margin.top - margin.bottom;
+
+
+var projection = d3.geoConicConformal()
+    .parallels([38 + 02 / 60, 39 + 12 / 60])
+    .rotate([78 + 30 / 60, 0])
+    .scale(width*8)
+    .translate([0,0]);
+
+var path = d3.geoPath()
+    .projection(projection);
+
+var svg = d3.select("#map").append("svg")
+
+svg.attr("viewBox", "0 0 " + width + " " + height )
+  .attr("preserveAspectRatio", "xMinYMin");
+
+g = svg.append('g')
+
+function zoomed() {
+  //g.style("stroke-width", 1.5 / d3.event.scale + "px");
+  g.attr("transform", d3.event.transform);
+
+}
+
+var quantize = d3.scaleQuantize()
+    .domain([50000, 200000])
+    .range(d3.range(5).map(function(d,i) { return "q0-" + i;}));
+
+d3.json("tesvatopo9.json", function(error, data) {
+  if (error) throw error;
+  d3.csv("data.csv", function(error, csv){
+  	  current_code = "est_pop2015"
+
+  	  nameById = d3.map()
+  	  csv.forEach(function(d){
+  	  	nameById.set(d.geoid2,d.geoname)
+  	  })
+	  calc_data = function(){
+	  	dataById = d3.map()
+	  	csv.forEach(function(d){
+	  		dataById.set(d.geoid2,d[current_code])	  		
+	  	})
+
+	  }
+	  calc_data()
+  	
+	  var state = topojson.feature(data, data.objects.states),
+	      bounds = path.bounds(state);
+
+	  projection
+	      .translate([width / 2 - (bounds[0][0] + bounds[1][0]) / 2, height / 2 - (bounds[0][1] + bounds[1][1]) / 2]);
+
+	  countythings = g.append("g")
+	        .attr("class", "counties")
+	      .selectAll("path")
+	        .data(topojson.feature(data, data.objects.counties).features)
+	      .enter().append("path")
+	        //.attr("fill", function(d) { return quantize(rateById.get(d.id)); })
+	        .attr('id',function(d){return d.id})
+	        .attr("d", path)
+	        .on("mouseover",function(d){
+	        	var currentcounty = this;
+	        	d3.select(this).transition().duration(200).style('fill','red')
+
+	        	d3.select("#value").text(dataById.get(d.id))
+	        	d3.select("#geography").text(nameById.get(d.id))
+	        })
+	        .on("mouseout",function(d){
+	        	d3.select(this).transition().duration(200).style('fill',null)
+	        })
+
+	  countythings.attr("class", function(d) {
+	        	//return "#CF7800"
+	            return quantize(dataById.get(d.id)); 
+	        })
+
+
+		g.append("g")
+		        .attr("class", "state")
+		      .selectAll("path")
+		        .data(topojson.feature(data, data.objects.states).features)
+		      .enter().append("path")
+		        //.attr("class", function(d) { return quantize(rateById.get(eval('d.'+set_dataset.idvar))); })
+		        //.attr('id',function(d){return eval('d.'+set_dataset.idvar)})
+		        .attr("d", path)
+
+	  zoom = d3.zoom()
+	    //.translateBy(0, 0)
+	    //.scaleBy(1)
+	    .scaleExtent([.5, 50])
+	    .on("zoom", zoomed);
+
+	  svg
+	    .call(zoom) // delete this line to disable free zooming
+	    .call(zoom.transform, d3.zoomIdentity); 
+
+	  d3.select("#dropdown").on("change",function(){
+	  	current_code = d3.select("#dropdown").property("value")
+	  	calc_data()
+	        countythings.attr("class", function(d) {
+	        	//return "#CF7800"
+	            return quantize(dataById.get(d.id)); 
+	        })
+
+	  })	
+  })
+
+});
+
+</script>
